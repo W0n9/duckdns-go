@@ -3,46 +3,61 @@ package duckdns
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 const (
-	// Version identifies the current library version.
-	// This is a pro-forma convention given that Go dependencies
-	// tends to be fetched directly from the repo.
-	// It is also used in the user-agent identify the client.
 	Version = "1.0.0"
 
-	// defaultBaseURL to the DNSimple production API.
-	defaultBaseURL = "https://www.duckdns.org/"
+	defaultBaseURL = "https://www.duckdns.org/update?"
+	domainStub     = "domains="
+	tokenStub      = "&token="
+	ip4Stub        = "&ip="
+	ip6Stub        = "&ipv6="
+	txtStub        = "&txt="
+	verboseStub    = "&verbose="
+	clearStub      = "&clear="
 
-	// userAgent represents the default user agent used
-	// when no other user agent is set.
 	defaultUserAgent = "duckdns-go/" + Version
 )
 
-// Client represents a client to the DuckDNS API.
+type Config struct {
+	DomainNames []string
+	Token       string
+	IPv4        string
+	IPv6        string
+}
+
+func (c *Config) Valid() bool {
+	if c.Token != "" && len(c.DomainNames) > 0 {
+		return true
+	}
+	return false
+}
+
 type Client struct {
 	httpClient *http.Client
 	BaseURL    string
 	UserAgent  string
 
-	Auth    *AuthService
-	Domains *DomainsService
-	Records *RecordsService
+	Config *Config
 
-	Debug bool
+	Verbose bool
 }
 
-func NewClient(httpClient *http.Client) *Client {
-	c := &Client{
-		httpClient: httpClient,
-		BaseURL:    defaultBaseURL,
-		UserAgent:  defaultUserAgent}
-	c.Auth = &AuthService{client: c}
-	c.Domains = &DomainsService{client: c}
-	c.Records = &RecordsService{client: c}
+func NewClient(httpClient *http.Client, config *Config) *Client {
+	if !config.Valid() {
+		log.Fatal("Configuration is not valid")
+	}
+
+	c := &Client{httpClient: httpClient, BaseURL: defaultBaseURL, UserAgent: defaultUserAgent}
+	c.Config = config
 	return c
 }
 
@@ -50,22 +65,18 @@ func (c *Client) SetUserAgent(ua string) {
 	c.UserAgent = ua
 }
 
-func (c *Client) SetDebug(debug bool) {
-	c.Debug = debug
+func (c *Client) SetVerbose(verbose bool) {
+	c.Verbose = verbose
 }
 
-func (c *Client) get(ctx context.Context, path string) (*http.Response, error) {
-	return c.makeRequest(ctx, http.MethodGet, path)
-}
+func (c *Client) makeGetRequest(ctx context.Context, path string) (*http.Response, error) {
 
-func (c *Client) makeRequest(ctx context.Context, method, path string) (*http.Response, error) {
-
-	req, err := c.newRequest(method, path)
+	req, err := c.newRequest(http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.Debug {
+	if c.Verbose {
 		log.Printf("Request (%v): %#v", req.URL, req)
 	}
 
@@ -74,7 +85,7 @@ func (c *Client) makeRequest(ctx context.Context, method, path string) (*http.Re
 		return nil, err
 	}
 
-	if c.Debug {
+	if c.Verbose {
 		log.Printf("Response: %#v", resp)
 	}
 
@@ -107,10 +118,82 @@ func (c *Client) request(ctx context.Context, req *http.Request) (*http.Response
 	}
 	defer resp.Body.Close()
 
-	err = CheckResponse(resp)
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return resp, err
+		log.Printf("Error reading body response")
+		return nil, err
+	}
+
+	if strings.Contains(string(bodyBytes), "KO") {
+		log.Printf("Error returned from DuckDNS")
+		return nil, err
 	}
 
 	return resp, err
+}
+
+//Update IPv4 and/or without IP address
+func (c *Client) UpdateIP() (*http.Response, error) {
+	subdomains := strings.Join(c.Config.DomainNames, ",")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, ip4Stub, verboseStub, strconv.FormatBool(c.Verbose))
+	resp, err := c.makeGetRequest(context.Background(), url)
+
+	return resp, err
+}
+
+//Update IPv4 and/or with IP address
+func (c *Client) UpdateIPWithValues(ipv4, ipv6 string) (*http.Response, error) {
+	subdomains := strings.Join(c.Config.DomainNames, ",")
+	url := fmt.Sprintf("%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, ip4Stub)
+	if ipv6 == "" {
+		url = fmt.Sprintf("%s%s%s%s", url, ipv4, verboseStub, strconv.FormatBool(c.Verbose))
+	} else {
+		url = fmt.Sprintf("%s%s%s%s%s%s", url, ipv4, ip6Stub, ipv6, verboseStub, strconv.FormatBool(c.Verbose))
+	}
+	resp, err := c.makeGetRequest(context.Background(), url)
+
+	return resp, err
+}
+
+//Clear IP
+func (c *Client) ClearIP() (*http.Response, error) {
+	subdomains := strings.Join(c.Config.DomainNames, ",")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
+	resp, err := c.makeGetRequest(context.Background(), url)
+
+	return resp, err
+}
+
+//Update TXT record
+func (c *Client) UpdateRecord(record string) (*http.Response, error) {
+	subdomains := strings.Join(c.Config.DomainNames, ",")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose))
+	resp, err := c.makeGetRequest(context.Background(), url)
+
+	return resp, err
+}
+
+//Clear TXT record
+func (c *Client) ClearRecord(record string) (*http.Response, error) {
+	subdomains := strings.Join(c.Config.DomainNames, ",")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
+	resp, err := c.makeGetRequest(context.Background(), url)
+
+	return resp, err
+}
+
+//Get TXT record
+func (c *Client) GetRecord() (string, error) {
+	subdomains := c.Config.DomainNames[0]
+	txt, err := net.LookupTXT(subdomains)
+	if err != nil {
+		return "", fmt.Errorf("Unable to get txt record, %v", err)
+	}
+
+	if len(txt) == 0 {
+		return "", nil
+	}
+
+	//duckdns should have only 1 record
+	return txt[0], nil
 }
