@@ -15,8 +15,8 @@ import (
 const (
 	Version = "1.0.0"
 
-	defaultBaseURL = "https://www.duckdns.org/update?"
-	domainStub     = "domains="
+	defaultBaseURL = "https://www.duckdns.org"
+	domainStub     = "/update?domains="
 	tokenStub      = "&token="
 	ip4Stub        = "&ip="
 	ip6Stub        = "&ipv6="
@@ -135,7 +135,7 @@ func (c *Client) request(ctx context.Context, req *http.Request) (*http.Response
 //Update IPv4 and/or without IP address
 func (c *Client) UpdateIP() (*http.Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, ip4Stub, verboseStub, strconv.FormatBool(c.Verbose))
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub, verboseStub, strconv.FormatBool(c.Verbose))
 	resp, err := c.makeGetRequest(context.Background(), url)
 
 	return resp, err
@@ -144,7 +144,7 @@ func (c *Client) UpdateIP() (*http.Response, error) {
 //Update IPv4 and/or with IP address
 func (c *Client) UpdateIPWithValues(ipv4, ipv6 string) (*http.Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, ip4Stub)
+	url := fmt.Sprintf("%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
 	if ipv6 == "" {
 		url = fmt.Sprintf("%s%s%s%s", url, ipv4, verboseStub, strconv.FormatBool(c.Verbose))
 	} else {
@@ -158,7 +158,7 @@ func (c *Client) UpdateIPWithValues(ipv4, ipv6 string) (*http.Response, error) {
 //Clear IP
 func (c *Client) ClearIP() (*http.Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
 	resp, err := c.makeGetRequest(context.Background(), url)
 
 	return resp, err
@@ -167,7 +167,7 @@ func (c *Client) ClearIP() (*http.Response, error) {
 //Update TXT record
 func (c *Client) UpdateRecord(record string) (*http.Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose))
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose))
 	resp, err := c.makeGetRequest(context.Background(), url)
 
 	return resp, err
@@ -176,7 +176,7 @@ func (c *Client) UpdateRecord(record string) (*http.Response, error) {
 //Clear TXT record
 func (c *Client) ClearRecord(record string) (*http.Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s", defaultBaseURL, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
 	resp, err := c.makeGetRequest(context.Background(), url)
 
 	return resp, err

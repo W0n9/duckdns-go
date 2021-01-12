@@ -1,8 +1,14 @@
 package duckdns
 
 import (
+	"bufio"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +31,46 @@ func setupMockServer() {
 
 func teardownMockServer() {
 	server.Close()
+}
+
+func testMethod(t *testing.T, r *http.Request, want string) {
+	if got := r.Method; want != got {
+		t.Errorf("Request METHOD expected to be `%v`, got `%v`", want, got)
+	}
+}
+
+func testQuery(t *testing.T, r *http.Request, want url.Values) {
+	if got := r.URL.Query(); !reflect.DeepEqual(want, got) {
+		t.Errorf("Request METHOD expected to be `%v`, got `%v`", want, got)
+	}
+}
+
+func testHeader(t *testing.T, r *http.Request, name, want string) {
+	if got := r.Header.Get(name); want != got {
+		t.Errorf("Request() %v expected to be `%#v`, got `%#v`", name, want, got)
+	}
+}
+
+func testHeaders(t *testing.T, r *http.Request) {
+	testHeader(t, r, "User-Agent", defaultUserAgent)
+}
+
+func readHTTPFixture(t *testing.T, filename string) string {
+	data, err := ioutil.ReadFile("../fixtures.http" + filename)
+	if err != nil {
+		t.Fatalf("Unable to read HTTP fixture: %v", err)
+	}
+	s := string(data[:])
+	return s
+}
+
+func httpResponseFixture(t *testing.T, filename string) *http.Response {
+	resp, err := http.ReadResponse(bufio.NewReader(strings.NewReader(readHTTPFixture(t, filename))), nil)
+	if err != nil {
+		t.Fatalf("Unable to create http.Response from fixture: %v", err)
+	}
+	// resp.Body.Close()
+	return resp
 }
 
 func TestNewClient(t *testing.T) {
@@ -76,5 +122,32 @@ func TestClient_NewRequest(t *testing.T) {
 	ua := req.Header.Get("User-Agent")
 	if ua != defaultUserAgent {
 		t.Errorf("Incorrect request User-Agent, expected %v, got %v", defaultUserAgent, ua)
+	}
+}
+
+func TestUpdateIP(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+
+	mux.HandleFunc("/update?", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/ip/success.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		testQuery(t, r, url.Values{})
+
+		w.WriteHeader(httpResponse.StatusCode)
+		_, _ = io.Copy(w, httpResponse.Body)
+	})
+
+	resp, err := client.UpdateIP()
+	if err != nil {
+		t.Fatalf("UpdateIP() returned error: %v", err)
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+
+	if want, got := "OK", string(bodyBytes); want != got {
+		t.Errorf("UpdateIP() expected to return %v, got %v", want, got)
 	}
 }
