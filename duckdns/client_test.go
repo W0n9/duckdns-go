@@ -157,3 +157,155 @@ func TestUpdateIP(t *testing.T) {
 		t.Errorf("UpdateIP() expected to return %v, got %v", want, got)
 	}
 }
+
+func TestUpdateIPVerbose(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success-verbose.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("ip", "")
+		v.Add("token", "example-token")
+		v.Add("verbose", "true")
+		testQuery(t, r, v)
+
+		w.WriteHeader(httpResponse.StatusCode)
+		io.Copy(w, httpResponse.Body)
+	})
+
+	client.Verbose = true
+	resp, err := client.UpdateIP(context.Background())
+	if err != nil {
+		t.Fatalf("TestUpdateIPVerbose() returned error: %v", err)
+	}
+
+	split := strings.Split(resp.Data, "\n")
+	if want, got := "OK", split[0]; want != got {
+		t.Errorf("TestUpdateIPVerbose() expected to return %v, got %v", want, got)
+	}
+}
+
+func TestUpdateIPWithValues(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("ip", "10.10.10.253")
+		v.Add("ipv6", "0:0:0:0:0:ffff:a0a:afd")
+		v.Add("token", "example-token")
+		testQuery(t, r, v)
+
+		w.WriteHeader(httpResponse.StatusCode)
+		io.Copy(w, httpResponse.Body)
+	})
+
+	resp, err := client.UpdateIPWithValues(context.Background(), "10.10.10.253", "0:0:0:0:0:ffff:a0a:afd")
+	if err != nil {
+		t.Fatalf("UpdateIPWithValues() returned error: %v", err)
+	}
+
+	if want, got := "OK", resp.Data; want != got {
+		t.Errorf("UpdateIPWithValues() expected to return %v, got %v", want, got)
+	}
+}
+
+func TestClearIP(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("token", "example-token")
+		v.Add("clear", "true")
+		testQuery(t, r, v)
+
+		w.WriteHeader(httpResponse.StatusCode)
+		io.Copy(w, httpResponse.Body)
+	})
+
+	resp, err := client.ClearIP(context.Background())
+	if err != nil {
+		t.Fatalf("ClearIP() returned error: %v", err)
+	}
+
+	if want, got := "OK", resp.Data; want != got {
+		t.Errorf("ClearIP() expected to return %v, got %v", want, got)
+	}
+}
+
+func TestUpdateRecord(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+	record := "docusign=1b0a6754-49b1-4db5-8540-d2c12664b289"
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("token", "example-token")
+		v.Add("txt", record)
+		testQuery(t, r, v)
+
+		w.WriteHeader(httpResponse.StatusCode)
+		io.Copy(w, httpResponse.Body)
+	})
+
+	resp, err := client.UpdateRecord(context.Background(), record)
+	if err != nil {
+		t.Fatalf("UpdateRecord() returned error: %v", err)
+	}
+
+	if want, got := "OK", resp.Data; want != got {
+		t.Errorf("UpdateRecord() expected to return %v, got %v", want, got)
+	}
+}
+
+func TestClearRecord(t *testing.T) {
+	setupMockServer()
+	defer teardownMockServer()
+	record := "docusign=1b0a6754-49b1-4db5-8540-d2c12664b289"
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success.http")
+
+		testMethod(t, r, "GET")
+		testHeaders(t, r)
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("token", "example-token")
+		v.Add("txt", record)
+		v.Add("clear", "true")
+		testQuery(t, r, v)
+
+		w.WriteHeader(httpResponse.StatusCode)
+		io.Copy(w, httpResponse.Body)
+	})
+
+	resp, err := client.ClearRecord(context.Background(), record)
+	if err != nil {
+		t.Fatalf("UpdateRecord() returned error: %v", err)
+	}
+
+	if want, got := "OK", resp.Data; want != got {
+		t.Errorf("UpdateRecord() expected to return %v, got %v", want, got)
+	}
+}
