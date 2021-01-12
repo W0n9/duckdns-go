@@ -2,6 +2,7 @@ package duckdns
 
 import (
 	"bufio"
+	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -20,7 +21,9 @@ var (
 
 func setupMockServer() {
 	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
+	server = httptest.NewUnstartedServer(mux)
+	server.EnableHTTP2 = true
+	server.Start()
 
 	config := &Config{}
 	config.Token = "example-token"
@@ -60,6 +63,7 @@ func readHTTPFixture(t *testing.T, filename string) string {
 	if err != nil {
 		t.Fatalf("Unable to read HTTP fixture: %v", err)
 	}
+
 	s := string(data[:])
 	return s
 }
@@ -129,25 +133,27 @@ func TestUpdateIP(t *testing.T) {
 	setupMockServer()
 	defer teardownMockServer()
 
-	mux.HandleFunc("/update?", func(w http.ResponseWriter, r *http.Request) {
-		httpResponse := httpResponseFixture(t, "/ip/success.http")
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		httpResponse := httpResponseFixture(t, "/success.http")
 
 		testMethod(t, r, "GET")
 		testHeaders(t, r)
-		testQuery(t, r, url.Values{})
+		v := url.Values{}
+		v.Set("domains", "example")
+		v.Add("ip", "")
+		v.Add("token", "example-token")
+		testQuery(t, r, v)
 
 		w.WriteHeader(httpResponse.StatusCode)
-		_, _ = io.Copy(w, httpResponse.Body)
+		io.Copy(w, httpResponse.Body)
 	})
 
-	resp, err := client.UpdateIP()
+	resp, err := client.UpdateIP(context.Background())
 	if err != nil {
 		t.Fatalf("UpdateIP() returned error: %v", err)
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-
-	if want, got := "OK", string(bodyBytes); want != got {
+	if want, got := "OK", resp.Data; want != got {
 		t.Errorf("UpdateIP() expected to return %v, got %v", want, got)
 	}
 }

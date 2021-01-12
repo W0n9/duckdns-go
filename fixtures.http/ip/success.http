@@ -1,9 +1,0 @@
-HTTP/2 200
-date: Tue, 10 Jan 2981 10:53:08 GMT
-set-cookie: AWSALB=moyJQPBuzwhoV4HMHsBHEeLBppogUM8Hqx96kDxP80hB7qpQdfux6687hucKZQarUPd7PTki5c+4beEHP3H6MngaCTRgO9AhYfIGMiwKnmbIeBqfoxSY8TiwiSZ2; Expires=Tue, 10 Jan 2981 10:53:08 GMT; Path=/
-set-cookie: AWSALBCORS=moyJQPBuzwhoV4HMHsBHEeLBppogUM8Hqx96kDxP80hB7qpQdfux6687hucKZQarUPd7PTki5c+4beEHP3H6MngaCTRgO9AhYfIGMiwKnmbIeBqfoxSY8TiwiSZ2; Expires=Tue, 10 Jan 2981 10:53:08 GMT; Path=/; SameSite=None; Secure
-server: nginx/1.18.0
-x-clacks-overhead: GNU Terry Pratchett
-x-frame-options: DENY
-
-OK

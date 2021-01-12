@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"k8s.io/klog/v2"
 	"net"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
@@ -26,6 +25,11 @@ const (
 
 	defaultUserAgent = "duckdns-go/" + Version
 )
+
+type Response struct {
+	HTTPResponse *http.Response
+	Data         string
+}
 
 type Config struct {
 	DomainNames []string
@@ -53,11 +57,13 @@ type Client struct {
 
 func NewClient(httpClient *http.Client, config *Config) *Client {
 	if !config.Valid() {
-		log.Fatal("Configuration is not valid")
+		klog.Fatal("Configuration is not valid")
 	}
 
-	c := &Client{httpClient: httpClient, BaseURL: defaultBaseURL, UserAgent: defaultUserAgent}
-	c.Config = config
+	c := &Client{httpClient: httpClient,
+		BaseURL:   defaultBaseURL,
+		UserAgent: defaultUserAgent,
+		Config:    config}
 	return c
 }
 
@@ -69,24 +75,16 @@ func (c *Client) SetVerbose(verbose bool) {
 	c.Verbose = verbose
 }
 
-func (c *Client) makeGetRequest(ctx context.Context, path string) (*http.Response, error) {
+func (c *Client) makeGetRequest(ctx context.Context, path string, response *Response) (*http.Response, error) {
 
 	req, err := c.newRequest(http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
 
-	if c.Verbose {
-		log.Printf("Request (%v): %#v", req.URL, req)
-	}
-
-	resp, err := c.request(ctx, req)
+	resp, err := c.request(ctx, req, response)
 	if err != nil {
 		return nil, err
-	}
-
-	if c.Verbose {
-		log.Printf("Response: %#v", resp)
 	}
 
 	return resp, nil
@@ -106,7 +104,7 @@ func (c *Client) newRequest(method, path string) (*http.Request, error) {
 	return req, err
 }
 
-func (c *Client) request(ctx context.Context, req *http.Request) (*http.Response, error) {
+func (c *Client) request(ctx context.Context, req *http.Request, response *Response) (*http.Response, error) {
 	if ctx == nil {
 		return nil, errors.New("context must be non-nil")
 	}
@@ -118,66 +116,78 @@ func (c *Client) request(ctx context.Context, req *http.Request) (*http.Response
 	}
 	defer resp.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("Error reading body response")
-		return nil, err
-	}
-
-	if strings.Contains(string(bodyBytes), "KO") {
-		log.Printf("Error returned from DuckDNS")
-		return nil, err
+	if response != nil {
+		bytes, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return resp, err
+		}
+		response.Data = string(bytes)
 	}
 
 	return resp, err
 }
 
 //Update IPv4 and/or without IP address
-func (c *Client) UpdateIP() (*http.Response, error) {
+func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub, verboseStub, strconv.FormatBool(c.Verbose))
-	resp, err := c.makeGetRequest(context.Background(), url)
+	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
 
-	return resp, err
+	response := &Response{}
+	resp, err := c.makeGetRequest(ctx, url, response)
+
+	if err != nil {
+		return response, err
+	}
+
+	response.HTTPResponse = resp
+	return response, err
 }
 
 //Update IPv4 and/or with IP address
-func (c *Client) UpdateIPWithValues(ipv4, ipv6 string) (*http.Response, error) {
+func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
+	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
 	if ipv6 == "" {
-		url = fmt.Sprintf("%s%s%s%s", url, ipv4, verboseStub, strconv.FormatBool(c.Verbose))
+		url = fmt.Sprintf("%s%s", url, ipv4)
 	} else {
-		url = fmt.Sprintf("%s%s%s%s%s%s", url, ipv4, ip6Stub, ipv6, verboseStub, strconv.FormatBool(c.Verbose))
+		url = fmt.Sprintf("%s%s%s%s", url, ipv4, ip6Stub, ipv6)
 	}
-	resp, err := c.makeGetRequest(context.Background(), url)
+
+	resp := &Response{}
+	_, err := c.makeGetRequest(ctx, url, resp)
 
 	return resp, err
 }
 
 //Clear IP
-func (c *Client) ClearIP() (*http.Response, error) {
+func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
-	resp, err := c.makeGetRequest(context.Background(), url)
+	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, clearStub, "true")
+
+	resp := &Response{}
+	_, err := c.makeGetRequest(ctx, url, resp)
 
 	return resp, err
 }
 
 //Update TXT record
-func (c *Client) UpdateRecord(record string) (*http.Response, error) {
+func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose))
-	resp, err := c.makeGetRequest(context.Background(), url)
+	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record)
+
+	resp := &Response{}
+	_, err := c.makeGetRequest(ctx, url, resp)
 
 	return resp, err
 }
 
 //Clear TXT record
-func (c *Client) ClearRecord(record string) (*http.Response, error) {
+func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
-	url := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s", c.BaseURL, domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, verboseStub, strconv.FormatBool(c.Verbose), clearStub, "true")
-	resp, err := c.makeGetRequest(context.Background(), url)
+	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, clearStub, "true")
+
+	resp := &Response{}
+	_, err := c.makeGetRequest(ctx, url, resp)
 
 	return resp, err
 }
