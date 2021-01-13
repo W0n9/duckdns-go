@@ -16,16 +16,17 @@ const (
 )
 
 var (
+	c      *config.ClientConfig
 	client *duckdns.Client
 )
 
 func main() {
-	c := config.Load()
-	clientConfig := &duckdns.Config{}
-	clientConfig.Token = c.Token
-	clientConfig.DomainNames = c.DomainNames
-	clientConfig.Verbose = c.Verbose
-	client = duckdns.NewClient(http.DefaultClient, clientConfig)
+	c = config.Load()
+	config := &duckdns.Config{}
+	config.Token = c.Token
+	config.DomainNames = c.DomainNames
+	config.Verbose = c.Verbose
+	client = duckdns.NewClient(http.DefaultClient, config)
 
 	if c.UpdateIP {
 		UpdateIP(c.IPv4, c.IPv6)
@@ -35,10 +36,18 @@ func main() {
 	} else if c.ClearIP {
 		ClearIP()
 	} else if c.UpdateRecord {
+		if c.Record == "" {
+			klog.Error("Provided TXT record empty... It needs to be provided with -record string to update the txt record")
+			return
+		}
 		UpdateRecord(c.Record)
 	} else if c.GetRecord {
 		GetRecord()
 	} else if c.ClearRecord {
+		if c.Record == "" {
+			klog.Error("Provided TXT record empty... It needs to be provided with -record string to clear the txt record")
+			return
+		}
 		ClearRecord(c.Record)
 	} else {
 		klog.Error("CLI option provided unknown...")
@@ -62,8 +71,12 @@ func UpdateIP(ipv4, ipv6 string) {
 		body = SplitAndJoin(resp.Data)
 	}
 
-	klog.Infof("Got response %v", body)
-	klog.Infof("IP has been updated at %v", time.Now())
+	if strings.Contains(body, "KO") {
+		klog.Errorf("Got response containing KO, verify the provided arguments, will try again in %v", c.Interval)
+	} else {
+		klog.Infof("Got response %v", body)
+		klog.Infof("IP has been updated at %v", time.Now())
+	}
 }
 
 func ClearIP() {

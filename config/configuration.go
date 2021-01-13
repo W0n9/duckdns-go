@@ -10,40 +10,39 @@ import (
 	"time"
 
 	"github.com/heetch/confita"
-	"github.com/heetch/confita/backend"
 	"github.com/heetch/confita/backend/env"
 	"github.com/heetch/confita/backend/flags"
 )
 
 // Config is the exporter CLI configuration.
 type ClientConfig struct {
-	Token       string        `config:"duckdns_token"`
-	DomainNames []string      `config:"duckdns_domains"`
-	Record      string        `config:"record"`
-	IPv4        string        `config:"ipv4"`
-	IPv6        string        `config:"ipv6"`
-	Interval    time.Duration `config:"update_interval"`
+	Token       string        `config:"duckdns_token,description=DuckDNS Token (mandatory)"`
+	DomainNames []string      `config:"duckdns_domains,description=List of duckdns domains to update, needs to be comma separated (mandatory)"`
+	Record      string        `config:"record,description=TXT record (mandatory with -update-record/-clear-record flags)"`
+	IPv4        string        `config:"ipv4,description=IPv4 address (optional)"`
+	IPv6        string        `config:"ipv6,description=IPv6 address (optional)"`
+	Interval    time.Duration `config:"update_interval,description=Interval between IP updates (min 10 mins)"`
 
-	Verbose      bool `config:"verbose"`
-	AutoIP       bool `config:"auto-ip"`
-	UpdateIP     bool `config:"update-ip"`
-	ClearIP      bool `config:"clear-ip"`
-	UpdateRecord bool `config:"update-record"`
-	GetRecord    bool `config:"get-record"`
-	ClearRecord  bool `config:"clear-record"`
+	Verbose      bool `config:"verbose,description=Verbose flag for duckdns response"`
+	AutoIP       bool `config:"auto-ip,description=Get public ipv4 and ipv6 via whatismyipaddress.com"`
+	UpdateIP     bool `config:"update-ip,description=Update IP routine"`
+	ClearIP      bool `config:"clear-ip,description=Clear ip in duckdns with clear=true`
+	UpdateRecord bool `config:"update-record,description=Update TXT record routine"`
+	GetRecord    bool `config:"get-record,description=Get txt record"`
+	ClearRecord  bool `config:"clear-record,description=Clear txt record in duckdns with clear=true"`
 }
 
 func getDefaultConfig() *ClientConfig {
 	return &ClientConfig{
 		Token:        "",
-		DomainNames:  []string{},
+		DomainNames:  nil,
 		Record:       "",
 		IPv4:         "",
 		IPv6:         "",
 		Interval:     60 * time.Minute,
 		Verbose:      false,
 		AutoIP:       false,
-		UpdateIP:     true,
+		UpdateIP:     false,
 		ClearIP:      false,
 		UpdateRecord: false,
 		GetRecord:    false,
@@ -53,14 +52,9 @@ func getDefaultConfig() *ClientConfig {
 
 // Load method loads the configuration by using both flag or environment variables.
 func Load() *ClientConfig {
-	loaders := []backend.Backend{
-		env.NewBackend(),
-		flags.NewBackend(),
-	}
-
-	loader := confita.NewLoader(loaders...)
-
 	cfg := getDefaultConfig()
+
+	loader := confita.NewLoader(env.NewBackend(), flags.NewBackend())
 	err := loader.Load(context.Background(), cfg)
 	if err != nil {
 		klog.Fatal("Could not load the configuration...")
