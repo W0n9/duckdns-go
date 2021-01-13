@@ -37,6 +37,7 @@ type Config struct {
 	Token       string
 	IPv4        string
 	IPv6        string
+	Verbose     bool
 }
 
 func (c *Config) Valid() bool {
@@ -52,8 +53,6 @@ type Client struct {
 	UserAgent  string
 
 	Config *Config
-
-	Verbose bool
 }
 
 func NewClient(httpClient *http.Client, config *Config) *Client {
@@ -72,7 +71,7 @@ func (c *Client) SetUserAgent(ua string) {
 	c.UserAgent = ua
 }
 
-func (c *Client) SetVerbose(verbose bool) {
+func (c *Config) SetVerbose(verbose bool) {
 	c.Verbose = verbose
 }
 
@@ -93,6 +92,8 @@ func (c *Client) makeGetRequest(ctx context.Context, path string, response *Resp
 
 func (c *Client) newRequest(method, path string) (*http.Request, error) {
 	url := c.BaseURL + path
+
+	klog.Infof("Sending request to %v", url)
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -133,8 +134,8 @@ func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
 
-	if c.Verbose {
-		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Verbose))
+	if c.Config.Verbose {
+		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	response := &Response{}
@@ -159,8 +160,8 @@ func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Re
 		url = fmt.Sprintf("%s%s%s%s", url, ipv4, ip6Stub, ipv6)
 	}
 
-	if c.Verbose {
-		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Verbose))
+	if c.Config.Verbose {
+		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
@@ -174,8 +175,8 @@ func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, clearStub, "true")
 
-	if c.Verbose {
-		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Verbose))
+	if c.Config.Verbose {
+		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
@@ -189,8 +190,8 @@ func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, er
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record)
 
-	if c.Verbose {
-		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Verbose))
+	if c.Config.Verbose {
+		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
@@ -204,8 +205,8 @@ func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, err
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, clearStub, "true")
 
-	if c.Verbose {
-		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Verbose))
+	if c.Config.Verbose {
+		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
@@ -216,7 +217,7 @@ func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, err
 
 //Get TXT record
 func (c *Client) GetRecord() (string, error) {
-	subdomains := c.Config.DomainNames[0]
+	subdomains := c.Config.DomainNames[0] + ".duckdns.org"
 	txt, err := net.LookupTXT(subdomains)
 	if err != nil {
 		return "", fmt.Errorf("Unable to get txt record, %v", err)
