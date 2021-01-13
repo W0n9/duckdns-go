@@ -16,7 +16,7 @@ import (
 )
 
 // Config is the exporter CLI configuration.
-type Config struct {
+type ClientConfig struct {
 	Token       string        `config:"duckdns_token"`
 	DomainNames []string      `config:"duckdns_domains"`
 	Record      string        `config:"record"`
@@ -33,8 +33,8 @@ type Config struct {
 	ClearRecord  bool `config:"clear-record"`
 }
 
-func getDefaultConfig() *Config {
-	return &Config{
+func getDefaultConfig() *ClientConfig {
+	return &ClientConfig{
 		Token:        "",
 		DomainNames:  []string{},
 		Record:       "",
@@ -52,7 +52,7 @@ func getDefaultConfig() *Config {
 }
 
 // Load method loads the configuration by using both flag or environment variables.
-func Load() *Config {
+func Load() *ClientConfig {
 	loaders := []backend.Backend{
 		env.NewBackend(),
 		flags.NewBackend(),
@@ -68,16 +68,23 @@ func Load() *Config {
 
 	if cfg.AutoIP {
 		cfg.getPublicIPv4()
+		cfg.getPublicIPv6()
 	}
+
+	if cfg.Interval < 10*time.Minute {
+		klog.Infof("A time interval below 10 mins is not recommanded. Setting it to 10 mins.")
+		cfg.Interval = 10 * time.Minute
+	}
+
 	cfg.show()
 
 	return cfg
 }
 
-func (c *Config) show() {
+func (c *ClientConfig) show() {
 	val := reflect.ValueOf(c).Elem()
 	klog.Info("---------------------------------------")
-	klog.Info("- DuckDNS configuration -")
+	klog.Info("- DuckDNS client configuration -")
 	klog.Info("---------------------------------------")
 	for i := 0; i < val.NumField(); i++ {
 		valueField := val.Field(i)
@@ -90,11 +97,12 @@ func (c *Config) show() {
 	klog.Info("---------------------------------------")
 }
 
-func (c *Config) getPublicIPv4() {
+func (c *ClientConfig) getPublicIPv4() {
 	url := "http://ipv4bot.whatismyipaddress.com"
 	resp, err := http.Get(url)
 	if err != nil {
-		klog.Fatal(err)
+		klog.Error(err)
+		return
 	}
 	defer resp.Body.Close()
 	ipv4, err := ioutil.ReadAll(resp.Body)
@@ -104,4 +112,21 @@ func (c *Config) getPublicIPv4() {
 
 	klog.Infof("Got IPv4 %v", string(ipv4))
 	c.IPv4 = string(ipv4)
+}
+
+func (c *ClientConfig) getPublicIPv6() {
+	url := "http://ipv6bot.whatismyipaddress.com"
+	resp, err := http.Get(url)
+	if err != nil {
+		klog.Error(err)
+		return
+	}
+	defer resp.Body.Close()
+	ipv6, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		klog.Fatal(err)
+	}
+
+	klog.Infof("Got IPv6 %v", string(ipv6))
+	c.IPv6 = string(ipv6)
 }

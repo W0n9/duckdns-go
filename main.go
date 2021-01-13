@@ -15,75 +15,94 @@ const (
 	name = "duckdns-client"
 )
 
+var (
+	client *duckdns.Client
+)
+
 func main() {
 	c := config.Load()
 	clientConfig := &duckdns.Config{}
 	clientConfig.Token = c.Token
 	clientConfig.DomainNames = c.DomainNames
 	clientConfig.Verbose = c.Verbose
+	client = duckdns.NewClient(http.DefaultClient, clientConfig)
 
 	if c.UpdateIP {
+		UpdateIP(c.IPv4, c.IPv6)
 		for range time.Tick(c.Interval) {
-			client := duckdns.NewClient(http.DefaultClient, clientConfig)
-
-			if c.IPv4 == "" && c.IPv4 == "" {
-				resp, err := client.UpdateIP(context.Background())
-				if err != nil {
-					klog.Fatal("UpdateIP() returned error: ", err)
-				}
-				s := strings.Split(resp.Data, "\n")
-				body := strings.Join(s, ", ")
-				klog.Infof("Got response %v", body)
-			} else {
-				resp, err := client.UpdateIPWithValues(context.Background(), c.IPv4, c.IPv6)
-				if err != nil {
-					klog.Fatal("UpdateIPWithValues() returned error: ", err)
-				}
-				s := strings.Split(resp.Data, "\n")
-				body := strings.Join(s, ", ")
-				klog.Infof("Got response %v", body)
-			}
-
-			klog.Infof("IP has been cleared at %v", time.Now())
+			UpdateIP(c.IPv4, c.IPv6)
 		}
+	} else if c.ClearIP {
+		ClearIP()
+	} else if c.UpdateRecord {
+		UpdateRecord(c.Record)
+	} else if c.GetRecord {
+		GetRecord()
+	} else if c.ClearRecord {
+		ClearRecord(c.Record)
+	} else {
+		klog.Error("CLI option provided unknown...")
 	}
+}
 
-	if c.ClearIP {
-		client := duckdns.NewClient(http.DefaultClient, clientConfig)
-		resp, err := client.ClearIP(context.Background())
+func UpdateIP(ipv4, ipv6 string) {
+	var body string
+
+	if ipv4 == "" && ipv6 == "" {
+		resp, err := client.UpdateIP(context.Background())
 		if err != nil {
-			klog.Fatal("ClearIP() returned error: ", err)
+			klog.Fatal("UpdateIP() returned error: ", err)
 		}
-		klog.Infof("Got response %v", resp.Data)
-		klog.Infof("IP has been cleared at %v", time.Now())
+		body = SplitAndJoin(resp.Data)
+	} else {
+		resp, err := client.UpdateIPWithValues(context.Background(), ipv4, ipv6)
+		if err != nil {
+			klog.Fatal("UpdateIPWithValues() returned error: ", err)
+		}
+		body = SplitAndJoin(resp.Data)
 	}
 
-	if c.UpdateRecord {
-		client := duckdns.NewClient(http.DefaultClient, clientConfig)
-		resp, err := client.UpdateRecord(context.Background(), c.Record)
-		if err != nil {
-			klog.Fatal("UpdateRecord() returned error: ", err)
-		}
-		klog.Infof("Got response %v", resp.Data)
-		klog.Infof("TXT Record has been update with %v at %v", c.Record, time.Now())
-	}
+	klog.Infof("Got response %v", body)
+	klog.Infof("IP has been updated at %v", time.Now())
+}
 
-	if c.GetRecord {
-		client := duckdns.NewClient(http.DefaultClient, clientConfig)
-		record, err := client.GetRecord()
-		if err != nil {
-			klog.Fatal("GetRecord() returned error: ", err)
-		}
-		klog.Infof("TXT Record is %q", record)
+func ClearIP() {
+	resp, err := client.ClearIP(context.Background())
+	if err != nil {
+		klog.Fatal("ClearIP() returned error: ", err)
 	}
+	klog.Infof("Got response %v", resp.Data)
+	klog.Infof("IP has been cleared at %v", time.Now())
+}
 
-	if c.ClearRecord {
-		client := duckdns.NewClient(http.DefaultClient, clientConfig)
-		resp, err := client.ClearRecord(context.Background(), c.Record)
-		if err != nil {
-			klog.Fatal("ClearRecord() returned error: ", err)
-		}
-		klog.Infof("Got response %v", resp.Data)
-		klog.Infof("TXT Record has been cleared at %v", time.Now())
+func UpdateRecord(record string) {
+	resp, err := client.UpdateRecord(context.Background(), record)
+	if err != nil {
+		klog.Fatal("UpdateRecord() returned error: ", err)
 	}
+	klog.Infof("Got response %v", resp.Data)
+	klog.Infof("TXT Record has been update with %v at %v", record, time.Now())
+}
+
+func GetRecord() {
+	record, err := client.GetRecord()
+	if err != nil {
+		klog.Fatal("GetRecord() returned error: ", err)
+	}
+	klog.Infof("TXT Record is %q", record)
+}
+
+func ClearRecord(record string) {
+	resp, err := client.ClearRecord(context.Background(), record)
+	if err != nil {
+		klog.Fatal("ClearRecord() returned error: ", err)
+	}
+	klog.Infof("Got response %v", resp.Data)
+	klog.Infof("TXT Record has been cleared at %v", time.Now())
+}
+
+func SplitAndJoin(data string) string {
+	s := strings.Split(data, "\n")
+	body := strings.Join(s, ", ")
+	return body
 }
