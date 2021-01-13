@@ -3,6 +3,7 @@
 ![Build/Push (master)](https://github.com/ebrianne/duckdns-go/workflows/Build/Push%20(master)/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/ebrianne/duckdns-go?status.png)](https://godoc.org/github.com/ebrianne/duckdns-go)
 [![GoReportCard](https://goreportcard.com/badge/github.com/ebrianne/duckdns-go)](https://goreportcard.com/report/github.com/ebrianne/duckdns-go)
+[![Known Vulnerabilities](https://snyk.io/test/github/ebrianne/duckdns-go/badge.svg?targetFile=Dockerfile)](https://snyk.io/test/github/ebrianne/duckdns-go?targetFile=Dockerfile)
 
 A golang client to update, clear ip and records for [DuckDNS](https://www.duckdns.org/) domains.
 
