@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	Version = "1.0.0"
+	//Version of the client
+	Version = "1.0.1"
 
 	defaultBaseURL = "https://www.duckdns.org"
 	domainStub     = "/update?domains="
@@ -27,11 +28,13 @@ const (
 	defaultUserAgent = "duckdns-go/" + Version
 )
 
+//Response structure containing the http response and the data from the body
 type Response struct {
 	HTTPResponse *http.Response
 	Data         string
 }
 
+//Config structure containing the client configuration
 type Config struct {
 	DomainNames []string
 	Token       string
@@ -40,6 +43,7 @@ type Config struct {
 	Verbose     bool
 }
 
+//Valid function to check if the client configuration is valid
 func (c *Config) Valid() bool {
 	if c.Token != "" && len(c.DomainNames) > 0 {
 		return true
@@ -47,6 +51,7 @@ func (c *Config) Valid() bool {
 	return false
 }
 
+//Client structure
 type Client struct {
 	httpClient *http.Client
 	BaseURL    string
@@ -55,6 +60,7 @@ type Client struct {
 	Config *Config
 }
 
+//NewClient function to return a valid duckdns client
 func NewClient(httpClient *http.Client, config *Config) *Client {
 	if !config.Valid() {
 		klog.Fatal("Configuration is not valid")
@@ -67,10 +73,12 @@ func NewClient(httpClient *http.Client, config *Config) *Client {
 	return c
 }
 
+//SetUserAgent function to set a custom header for the UserAgent
 func (c *Client) SetUserAgent(ua string) {
 	c.UserAgent = ua
 }
 
+//SetVerbose function to set the response of the client request to verbose=true
 func (c *Config) SetVerbose(verbose bool) {
 	c.Verbose = verbose
 }
@@ -129,7 +137,7 @@ func (c *Client) request(ctx context.Context, req *http.Request, response *Respo
 	return resp, err
 }
 
-//Update IPv4 and/or without IP address
+//UpdateIP function to update IPv4 and/or without IP address
 func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
@@ -149,7 +157,7 @@ func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 	return response, err
 }
 
-//Update IPv4 and/or with IP address
+//UpdateIPWithValues to update IPv4 and/or with IP address
 func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
@@ -170,7 +178,7 @@ func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Re
 	return resp, err
 }
 
-//Clear IP
+//ClearIP function that clears the IP from duckdns system
 func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, clearStub, "true")
@@ -185,7 +193,7 @@ func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 	return resp, err
 }
 
-//Update TXT record
+//UpdateRecord function to update TXT record
 func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record)
@@ -200,7 +208,7 @@ func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, er
 	return resp, err
 }
 
-//Clear TXT record
+//ClearRecord function to clear TXT record
 func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, clearStub, "true")
@@ -215,7 +223,7 @@ func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, err
 	return resp, err
 }
 
-//Get TXT record
+//GetRecord function to get TXT record like dig+ <domain> TXT
 func (c *Client) GetRecord() (string, error) {
 	var subdomains string
 	if strings.Contains(c.Config.DomainNames[0], "duckdns.org") {
