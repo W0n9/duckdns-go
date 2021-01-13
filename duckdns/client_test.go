@@ -178,7 +178,7 @@ func TestUpdateIPVerbose(t *testing.T) {
 		io.Copy(w, httpResponse.Body)
 	})
 
-	client.Verbose = true
+	client.Config.Verbose = true
 	resp, err := client.UpdateIP(context.Background())
 	if err != nil {
 		t.Fatalf("TestUpdateIPVerbose() returned error: %v", err)
