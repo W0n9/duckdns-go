@@ -1,6 +1,6 @@
 # duckdns-go, a duckdns client in golang
 
-<!-- ![Build/Push (master)](https://github.com/ebrianne/duckdns-go/workflows/Build/Push%20(master)/badge.svg?branch=master) -->
+![Build/Push (master)](https://github.com/ebrianne/duckdns-go/workflows/Build/Push%20(master)/badge.svg?branch=master)
 [![GoDoc](https://godoc.org/github.com/ebrianne/duckdns-go?status.png)](https://godoc.org/github.com/ebrianne/duckdns-go)
 [![GoReportCard](https://goreportcard.com/badge/github.com/ebrianne/duckdns-go)](https://goreportcard.com/report/github.com/ebrianne/duckdns-go)
 
