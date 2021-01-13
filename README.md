@@ -13,6 +13,29 @@ A golang client to update, clear ip and records for [DuckDNS](https://www.duckdn
 
 ## Installation
 
+### Download binary
+
+You can download the latest version of the binary built for your architecture here:
+
+* Architecture **i386** [
+[Darwin](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-darwin-386) /
+[FreeBSD](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-freebsd-386) /
+[Linux](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-linux-386) /
+[Windows](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-windows-386.exe)
+]
+* Architecture **amd64** [
+[Darwin](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-darwin-amd64) /
+[FreeBSD](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-freebsd-amd64) /
+[Linux](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-linux-amd64) /
+[Windows](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-windows-amd64.exe)
+]
+* Architecture **arm** [
+[Linux](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-linux-arm)
+]
+* Architecture **arm64** [
+[Linux](https://github.com/ebrianne/duckdns-go/releases/latest/download/duckdns-go-linux-arm64)
+]
+
 ### From sources
 
 You can download and build it from the sources. You have to retrieve the project sources by using one of the following way:
