@@ -217,7 +217,12 @@ func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, err
 
 //Get TXT record
 func (c *Client) GetRecord() (string, error) {
-	subdomains := c.Config.DomainNames[0] + ".duckdns.org"
+	var subdomains string
+	if strings.Contains(c.Config.DomainNames[0], "duckdns.org") {
+		subdomains = c.Config.DomainNames[0]
+	} else {
+		subdomains = c.Config.DomainNames[0] + ".duckdns.org"
+	}
 	txt, err := net.LookupTXT(subdomains)
 	if err != nil {
 		return "", fmt.Errorf("Unable to get txt record, %v", err)
