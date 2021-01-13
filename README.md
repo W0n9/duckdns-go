@@ -33,7 +33,24 @@ $ GOOS=linux GOARCH=arm GOARM=7 go build -o duckdns-go .
 ```
 ## Using Docker
 
-Coming soon
+The client has been made available as a docker image. You can simply run it by the following command and pass the configuration with environment variables. 
+By default it executes `./duckdns-go -update-ip`.
+
+```bash
+docker run \
+-e 'DUCKDNS_TOKEN=<token>' \
+-e 'DUCKDNS_DOMAINS=<domains>' \
+ebrianne/duckdns-go
+```
+
+You can also provide the command to run
+
+```bash
+docker run \
+-e 'DUCKDNS_TOKEN=<token>' \
+-e 'DUCKDNS_DOMAINS=<domains>' \
+ebrianne/duckdns-go ./duckdns-go [ARG]
+```
 
 ## Client Usage
 
