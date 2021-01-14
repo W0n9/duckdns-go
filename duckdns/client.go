@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/klog/v2"
+	"k8s.io/klog"
 	"net"
 	"net/http"
 	"strconv"
