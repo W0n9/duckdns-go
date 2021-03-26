@@ -100,7 +100,7 @@ func TestClient_SetUserAgent(t *testing.T) {
 		t.Errorf("UserAgent not assigned, expected %v, got %v", want, got)
 	}
 
-	req, _ := c.newRequest("GET", "/foo")
+	req, _ := c.newRequest("GET", "/foo", "/foo")
 
 	if want, got := "custom-agent/0.1", req.Header.Get("User-Agent"); want != got {
 		t.Errorf("Incorrect User-Agent Header, expected %v, got %v", want, got)
@@ -115,7 +115,7 @@ func TestClient_NewRequest(t *testing.T) {
 	c.BaseURL = "https://go.example.com"
 
 	inURL, outURL := "/foo", "https://go.example.com/foo"
-	req, _ := c.newRequest("GET", inURL)
+	req, _ := c.newRequest("GET", inURL, inURL)
 
 	// test that relative URL was expanded with the proper BaseURL
 	if req.URL.String() != outURL {

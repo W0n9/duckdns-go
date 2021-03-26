@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,7 +14,7 @@ import (
 
 const (
 	//Version of the client
-	Version = "1.0.1"
+	Version = "1.0.3"
 
 	defaultBaseURL = "https://www.duckdns.org"
 	domainStub     = "/update?domains="
@@ -83,9 +83,9 @@ func (c *Config) SetVerbose(verbose bool) {
 	c.Verbose = verbose
 }
 
-func (c *Client) makeGetRequest(ctx context.Context, path string, response *Response) (*http.Response, error) {
+func (c *Client) makeGetRequest(ctx context.Context, path, pathObf string, response *Response) (*http.Response, error) {
 
-	req, err := c.newRequest(http.MethodGet, path)
+	req, err := c.newRequest(http.MethodGet, path, pathObf)
 	if err != nil {
 		return nil, err
 	}
@@ -98,10 +98,11 @@ func (c *Client) makeGetRequest(ctx context.Context, path string, response *Resp
 	return resp, nil
 }
 
-func (c *Client) newRequest(method, path string) (*http.Request, error) {
+func (c *Client) newRequest(method, path, pathObf string) (*http.Request, error) {
 	url := c.BaseURL + path
+	urlObf := c.BaseURL + pathObf
 
-	klog.Infof("Sending request to %v", url)
+	klog.Infof("Sending request to %v", urlObf)
 
 	req, err := http.NewRequest(method, url, nil)
 	if err != nil {
@@ -141,13 +142,15 @@ func (c *Client) request(ctx context.Context, req *http.Request, response *Respo
 func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
+	urlObf := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, "*********", ip4Stub)
 
 	if c.Config.Verbose {
 		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
+		urlObf = fmt.Sprintf("%s%s%s", urlObf, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	response := &Response{}
-	resp, err := c.makeGetRequest(ctx, url, response)
+	resp, err := c.makeGetRequest(ctx, url, urlObf, response)
 
 	if err != nil {
 		return response, err
@@ -161,19 +164,23 @@ func (c *Client) UpdateIP(ctx context.Context) (*Response, error) {
 func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, ip4Stub)
+	urlObf := fmt.Sprintf("%s%s%s%s%s", domainStub, subdomains, tokenStub, "*********", ip4Stub)
 
 	if ipv6 == "" {
 		url = fmt.Sprintf("%s%s", url, ipv4)
+		urlObf = fmt.Sprintf("%s%s", urlObf, ipv4)
 	} else {
 		url = fmt.Sprintf("%s%s%s%s", url, ipv4, ip6Stub, ipv6)
+		urlObf = fmt.Sprintf("%s%s%s%s", urlObf, ipv4, ip6Stub, ipv6)
 	}
 
 	if c.Config.Verbose {
 		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
+		urlObf = fmt.Sprintf("%s%s%s", urlObf, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
-	_, err := c.makeGetRequest(ctx, url, resp)
+	_, err := c.makeGetRequest(ctx, url, urlObf, resp)
 
 	return resp, err
 }
@@ -182,13 +189,15 @@ func (c *Client) UpdateIPWithValues(ctx context.Context, ipv4, ipv6 string) (*Re
 func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, clearStub, "true")
+	urlObf := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, "*********", clearStub, "true")
 
 	if c.Config.Verbose {
 		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
+		urlObf = fmt.Sprintf("%s%s%s", urlObf, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
-	_, err := c.makeGetRequest(ctx, url, resp)
+	_, err := c.makeGetRequest(ctx, url, urlObf, resp)
 
 	return resp, err
 }
@@ -197,13 +206,15 @@ func (c *Client) ClearIP(ctx context.Context) (*Response, error) {
 func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record)
+	urlObf := fmt.Sprintf("%s%s%s%s%s%s", domainStub, subdomains, tokenStub, "*********", txtStub, record)
 
 	if c.Config.Verbose {
 		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
+		urlObf = fmt.Sprintf("%s%s%s", urlObf, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
-	_, err := c.makeGetRequest(ctx, url, resp)
+	_, err := c.makeGetRequest(ctx, url, urlObf, resp)
 
 	return resp, err
 }
@@ -212,13 +223,15 @@ func (c *Client) UpdateRecord(ctx context.Context, record string) (*Response, er
 func (c *Client) ClearRecord(ctx context.Context, record string) (*Response, error) {
 	subdomains := strings.Join(c.Config.DomainNames, ",")
 	url := fmt.Sprintf("%s%s%s%s%s%s%s%s", domainStub, subdomains, tokenStub, c.Config.Token, txtStub, record, clearStub, "true")
+	urlObf := fmt.Sprintf("%s%s%s%s%s%s%s%s", domainStub, subdomains, tokenStub, "*********", txtStub, record, clearStub, "true")
 
 	if c.Config.Verbose {
 		url = fmt.Sprintf("%s%s%s", url, verboseStub, strconv.FormatBool(c.Config.Verbose))
+		urlObf = fmt.Sprintf("%s%s%s", urlObf, verboseStub, strconv.FormatBool(c.Config.Verbose))
 	}
 
 	resp := &Response{}
-	_, err := c.makeGetRequest(ctx, url, resp)
+	_, err := c.makeGetRequest(ctx, url, urlObf, resp)
 
 	return resp, err
 }
