@@ -3,11 +3,13 @@ package config
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
-	"k8s.io/klog/v2"
-	"net/http"
+	"net"
 	"reflect"
+	"regexp"
+	"strings"
 	"time"
+
+	"k8s.io/klog/v2"
 
 	"github.com/heetch/confita"
 	"github.com/heetch/confita/backend/env"
@@ -24,7 +26,8 @@ type ClientConfig struct {
 	Interval    time.Duration `config:"update_interval,description=Interval between IP updates (min 10 mins)"`
 
 	Verbose      bool `config:"verbose,description=Verbose flag for duckdns response"`
-	AutoIP       bool `config:"auto-ip,description=Get public ipv4 and ipv6 via whatismyipaddress.com"`
+	AutoIP       bool `config:"auto-ip,description=Get device ipv4 and ipv6"`
+	IPv4Only     bool `config:"ipv4-only,description=Get device ipv4"`
 	UpdateIP     bool `config:"update-ip,description=Update IP routine"`
 	ClearIP      bool `config:"clear-ip,description=Clear ip in duckdns with clear=true`
 	UpdateRecord bool `config:"update-record,description=Update TXT record routine"`
@@ -61,8 +64,14 @@ func Load() *ClientConfig {
 	}
 
 	if cfg.AutoIP {
-		cfg.getPublicIPv4()
-		cfg.getPublicIPv6()
+		// cfg.getPublicIPv4()
+		// cfg.getPublicIPv6()
+		cfg.getDeviceIPv4()
+		cfg.getDeviceIPv6()
+	}
+
+	if cfg.IPv4Only {
+		cfg.getDeviceIPv4()
 	}
 
 	if cfg.Interval < 10*time.Minute {
@@ -91,36 +100,73 @@ func (c *ClientConfig) show() {
 	klog.Info("---------------------------------------")
 }
 
-func (c *ClientConfig) getPublicIPv4() {
-	url := "http://ipv4bot.whatismyipaddress.com"
-	resp, err := http.Get(url)
+// func (c *ClientConfig) getPublicIPv4() {
+// 	url := "http://ipv4bot.whatismyipaddress.com"
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		klog.Error(err)
+// 		return
+// 	}
+// 	defer resp.Body.Close()
+// 	ipv4, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		klog.Fatal(err)
+// 	}
+
+// 	klog.Infof("Got IPv4 %v", string(ipv4))
+// 	c.IPv4 = string(ipv4)
+// }
+
+// func (c *ClientConfig) getPublicIPv6() {
+// 	url := "http://ipv6bot.whatismyipaddress.com"
+// 	resp, err := http.Get(url)
+// 	if err != nil {
+// 		klog.Error(err)
+// 		return
+// 	}
+// 	defer resp.Body.Close()
+// 	ipv6, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		klog.Fatal(err)
+// 	}
+
+// 	klog.Infof("Got IPv6 %v", string(ipv6))
+// 	c.IPv6 = string(ipv6)
+// }
+
+func (c *ClientConfig) getDeviceIPv4() {
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		klog.Error(err)
 		return
 	}
-	defer resp.Body.Close()
-	ipv4, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		klog.Fatal(err)
-	}
 
-	klog.Infof("Got IPv4 %v", string(ipv4))
-	c.IPv4 = string(ipv4)
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				klog.Infof("Got IPv4 %v", ipnet.IP.String())
+				c.IPv4 = ipnet.IP.String()
+			}
+		}
+	}
 }
 
-func (c *ClientConfig) getPublicIPv6() {
-	url := "http://ipv6bot.whatismyipaddress.com"
-	resp, err := http.Get(url)
+func (c *ClientConfig) getDeviceIPv6() {
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		klog.Error(err)
 		return
 	}
-	defer resp.Body.Close()
-	ipv6, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		klog.Fatal(err)
-	}
 
-	klog.Infof("Got IPv6 %v", string(ipv6))
-	c.IPv6 = string(ipv6)
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To16() != nil {
+				i := regexp.MustCompile(`(\w+:){7}\w+`).FindString(ipnet.IP.String())
+				if strings.Count(i, ":") == 7 {
+					klog.Infof("Got IPv6 %v", i)
+					c.IPv6 = i
+				}
+			}
+		}
+	}
 }
